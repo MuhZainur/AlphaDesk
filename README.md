@@ -108,7 +108,7 @@ Eight demo questions run through the real graph by `evals/run_demo_set.py` on 20
 
 ## Known limitation
 
-On the free Render plan, Yahoo Finance rejects fundamentals requests (`YFRateLimitError` for P/E, margins and statements) because the server shares a cloud IP. Prices, technical indicators and news work. When fundamentals are blocked, the report says the data was unavailable instead of guessing. Running the backend locally returns fundamentals normally. A different data source for fundamentals is the next fix.
+On the free Render plan, Yahoo Finance rejects fundamentals requests (`YFRateLimitError`) because the server shares a cloud IP. Prices, technical indicators and news are not affected. For fundamentals the backend then falls back to SEC EDGAR filings (no API key, needs `SEC_USER_AGENT` with a contact address) and computes P/E, profit margin, revenue growth and debt-to-equity itself. Compared with Yahoo on seven large caps, trailing P/E matched; revenue growth (year-to-date vs the same period last year) and debt-to-equity (long-term debt only) use different definitions, which the tool states in its output. There is no forward P/E on the fallback path. Only SEC filers are covered.
 
 ## What I would do next
 

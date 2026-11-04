@@ -45,12 +45,22 @@ def test_critic_rules_catch_made_up_number_and_trade_advice():
     assert len(issues) == 3  # ungrounded number, trade instruction, missing Risks section
 
 
-def test_fundamentals_falls_back_to_statements_when_info_fails(monkeypatch):
+def test_fundamentals_falls_back_to_edgar_when_info_fails(monkeypatch):
     class T:
         @property
         def info(self):
             raise RuntimeError("YFRateLimitError")
 
     monkeypatch.setattr(market.yf, "Ticker", lambda t: T())
-    monkeypatch.setattr(market, "fundamentals_from_statements", lambda t: {"ticker": t, "trailing_pe": 20.0})
+    monkeypatch.setattr(market, "fundamentals_from_edgar", lambda t: {"ticker": t, "trailing_pe": 20.0})
     assert market.get_fundamentals("FALLBK") == {"ticker": "FALLBK", "trailing_pe": 20.0}
+
+
+def test_ttm_and_growth_from_sec_rows():
+    def r(s, e, v):
+        return {"start": s, "end": e, "val": v}
+
+    rows = [r("2024-01-01", "2024-12-31", 400), r("2024-01-01", "2024-09-30", 280), r("2025-01-01", "2025-09-30", 350)]
+    ttm, growth = market.ttm_and_growth(rows)
+    assert ttm == 400 + 350 - 280 and round(growth, 1) == 25.0  # TTM = FY + YTD - prior YTD
+    assert market.ttm_and_growth([r("2025-07-01", "2025-09-30", 90)]) == (None, None)  # no annual window

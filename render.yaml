@@ -18,6 +18,8 @@ services:
         sync: false
       - key: OPENROUTER_MODELS
         value: "nvidia/nemotron-3.5-super-vl:free,nvidia/nemotron-3-ultra-550b-a55b:free,recursive/flint-v1.0:free,nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free,dots-studio/dots-3-note-preview:free,google/gemma-4-31b-it:free,google/gemma-4-26b-a4b-it:free,xingchen-agi/xing4.0-29b-a4b:free,nvidia/nemotron-3.5-lightning:free"
+      - key: SEC_USER_AGENT
+        sync: false
       - key: MODEL_NAME
         value: gemini-3.8-flash
       - key: DB_PATH

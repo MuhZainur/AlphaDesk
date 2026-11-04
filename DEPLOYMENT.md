@@ -54,6 +54,7 @@ Free-tier behaviour to expect:
 | `MODEL_NAME` | Render | `gemini-3.8-flash` | Set in `render.yaml` |
 | `OPENROUTER_API_KEY` | Render | (secret) | Free key from openrouter.ai/keys |
 | `OPENROUTER_MODELS` | Render | comma-separated `:free` ids | Tried in order before Gemini |
+| `SEC_USER_AGENT` | Render | `AlphaDesk portfolio demo you@example.com` | Contact string SEC EDGAR requires; used when Yahoo blocks fundamentals on cloud IPs |
 | `ALLOWED_ORIGINS` | Render | `https://alphadesk.vercel.app` | Comma separated |
 | `DB_PATH` | Render | `./alphadesk.db` | Ephemeral on the free plan |
 | `RATE_LIMIT_PER_HOUR` | Render | `6` | Per IP |

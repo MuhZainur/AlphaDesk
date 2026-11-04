@@ -22,6 +22,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-3.8-flash")
 ALLOWED_ORIGINS = _list("ALLOWED_ORIGINS", "http://localhost:5173")
 DB_PATH = os.getenv("DB_PATH", "./alphadesk.db")
+SEC_USER_AGENT = os.getenv("SEC_USER_AGENT", "")  # SEC requires a contact in the User-Agent; set it in env, never commit it
 RATE_LIMIT_PER_HOUR = int(os.getenv("RATE_LIMIT_PER_HOUR", "6"))
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"

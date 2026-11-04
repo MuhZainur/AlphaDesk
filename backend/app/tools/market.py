@@ -6,6 +6,7 @@ import pandas as pd
 import requests
 import yfinance as yf
 
+from app import config
 from app.tools.cache import cached
 
 
@@ -74,31 +75,82 @@ def get_technicals(ticker: str) -> dict:
     return {"ticker": ticker, **compute_technicals(_history(ticker, "2y")["Close"])}
 
 
-def _row(df: pd.DataFrame, *names: str) -> pd.Series | None:
-    for n in names:
-        if n in df.index:
-            return df.loc[n].dropna()
-    return None
+_cik: dict[str, int] = {}
 
 
-def fundamentals_from_statements(ticker: str) -> dict:
-    """Fallback when Yahoo rate-limits `.info` (it does for cloud IPs): compute the same figures from statements."""
-    t = yf.Ticker(ticker)
-    inc, bal = t.quarterly_income_stmt, t.quarterly_balance_sheet
-    rev = _row(inc, "Total Revenue", "Operating Revenue")
-    ni = _row(inc, "Net Income", "Net Income Common Stockholders")
-    eps = _row(inc, "Diluted EPS", "Basic EPS")
-    if rev is None or len(rev) < 4:
-        raise ValueError(f"no statements for {ticker}")
+def _sec_get(url: str) -> dict:
+    r = requests.get(url, headers={"User-Agent": config.SEC_USER_AGENT}, timeout=40)
+    r.raise_for_status()
+    return r.json()
+
+
+def _window(r: dict) -> int:
+    return (datetime.fromisoformat(r["end"]) - datetime.fromisoformat(r["start"])).days
+
+
+def ttm_and_growth(rows: list[dict]) -> tuple[float | None, float | None]:
+    """Trailing-twelve-month value and a growth rate from SEC duration facts (annual, quarterly, year-to-date)."""
+    d = {(r["start"], r["end"]): r["val"] for r in rows if r.get("start")}
+    spans = [(datetime.fromisoformat(s), datetime.fromisoformat(e), v) for (s, e), v in d.items()]
+
+    def near(start, end, val_spans, tol=10):
+        return next((v for s2, e2, v in val_spans if abs((s2 - start).days) <= tol and abs((e2 - end).days) <= tol), None)
+
+    annual = [(s, e, v) for s, e, v in spans if 350 <= (e - s).days <= 380]
+    if not annual:
+        return None, None
+    s_a, e_a, v_a = max(annual, key=lambda x: x[1])
+    ytd = [(s, e, v) for s, e, v in spans if 60 < (e - s).days < 350 and e > e_a]
+    if ytd:
+        s_y, e_y, v_y = max(ytd, key=lambda x: (x[1], (x[1] - x[0]).days))
+        prior = near(s_y.replace(year=s_y.year - 1), e_y.replace(year=e_y.year - 1), spans)
+        if prior:
+            return v_a + v_y - prior, (v_y / prior - 1) * 100 if prior > 0 else None
+    prev = near(s_a.replace(year=s_a.year - 1), e_a.replace(year=e_a.year - 1), annual)
+    return v_a, (v_a / prev - 1) * 100 if prev and prev > 0 else None
+
+
+def _latest(facts: dict, tags: list[str], unit: str = "USD") -> list[dict]:
+    """Rows for the first tag that has the most recent data (companies switch XBRL tags over time)."""
+    best: list[dict] = []
+    for t in tags:
+        rows = facts.get(t, {}).get("units", {}).get(unit, [])
+        if rows and (not best or max(r["end"] for r in rows) > max(r["end"] for r in best)):
+            best = rows
+    return best
+
+
+def fundamentals_from_edgar(ticker: str) -> dict:
+    """Fallback when Yahoo rate-limits cloud IPs: compute the figures from SEC EDGAR filings (no API key)."""
+    if not config.SEC_USER_AGENT:
+        raise ValueError("SEC_USER_AGENT is not set")
+    if not _cik:
+        _cik.update({v["ticker"]: v["cik_str"] for v in _sec_get("https://www.sec.gov/files/company_tickers.json").values()})
+    cik = _cik.get(ticker.replace(".", "-"))
+    if cik is None:
+        raise ValueError(f"{ticker} is not an SEC filer")
+    facts = _sec_get(f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json")["facts"].get("us-gaap", {})
+    rev, growth = ttm_and_growth(_latest(facts, ["Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax", "SalesRevenueNet", "RevenueFromContractWithCustomerIncludingAssessedTax"]))
+    ni, _ = ttm_and_growth(_latest(facts, ["NetIncomeLoss", "ProfitLoss"]))
+    eps, _ = ttm_and_growth(_latest(facts, ["EarningsPerShareDiluted"], "USD/shares"))
     price = float(_history(ticker, "5d")["Close"].iloc[-1])
-    out = {"ticker": ticker, "source": "computed from quarterly statements: margin is the trailing four quarters, revenue growth is the latest quarter vs the same quarter a year earlier, no forward P/E", "forward_pe": None}
-    out["trailing_pe"] = round(price / float(eps.iloc[:4].sum()), 2) if eps is not None and len(eps) >= 4 and eps.iloc[:4].sum() > 0 else None
-    out["profit_margin_pct"] = round(float(ni.iloc[:4].sum() / rev.iloc[:4].sum()) * 100, 1) if ni is not None and len(ni) >= 4 else None
-    out["revenue_growth_pct"] = round((float(rev.iloc[0]) / float(rev.iloc[4]) - 1) * 100, 1) if len(rev) >= 5 else None
-    debt, eq = _row(bal, "Total Debt"), _row(bal, "Stockholders Equity", "Common Stock Equity")
-    out["debt_to_equity"] = round(float(debt.iloc[0] / eq.iloc[0]) * 100, 2) if debt is not None and eq is not None and eq.iloc[0] else None
+
+    def instant(tags):
+        rows = [r for r in _latest(facts, tags) if "start" not in r]
+        return max(rows, key=lambda r: (r["end"], r["filed"]))["val"] if rows else None
+
+    debt, equity = instant(["LongTermDebt", "LongTermDebtNoncurrent"]), instant(["StockholdersEquity"])
+    out = {
+        "ticker": ticker,
+        "source": "computed from SEC filings: P/E and margin use the trailing four quarters, revenue growth is the latest year-to-date vs the same period last year, debt is long-term debt, no forward P/E",
+        "forward_pe": None,
+        "trailing_pe": round(price / eps, 2) if eps and eps > 0 else None,
+        "profit_margin_pct": round(ni / rev * 100, 1) if ni is not None and rev else None,
+        "revenue_growth_pct": round(growth, 1) if growth is not None else None,
+        "debt_to_equity": round(debt / equity * 100, 2) if debt and equity and equity > 0 else None,
+    }
     if all(out[k] is None for k in ("trailing_pe", "profit_margin_pct", "revenue_growth_pct", "debt_to_equity")):
-        raise ValueError(f"no usable statements for {ticker}")
+        raise ValueError(f"no usable SEC data for {ticker}")
     return out
 
 
@@ -109,8 +161,8 @@ def get_fundamentals(ticker: str) -> dict:
         info = yf.Ticker(ticker).info
         if not info or (info.get("trailingPE") is None and info.get("forwardPE") is None and not info.get("longName")):
             raise ValueError(f"no fundamentals for {ticker}")
-    except Exception:  # noqa: BLE001 - rate limit or empty answer: use the statements route
-        return fundamentals_from_statements(ticker)
+    except Exception:  # noqa: BLE001 - rate limit or empty answer: use SEC filings
+        return fundamentals_from_edgar(ticker)
 
     def pct(v):
         return round(v * 100, 1) if isinstance(v, (int, float)) else None
