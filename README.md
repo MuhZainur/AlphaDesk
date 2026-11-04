@@ -106,6 +106,10 @@ Eight demo questions run through the real graph by `evals/run_demo_set.py` on 20
 - "Ungrounded numbers" counts numbers in the final report that are missing from the tool evidence, checked by a script. It was 0 for all 8. This checks the report against collected data, not against the truth of Yahoo Finance's data.
 - Not measured: answer quality against an expert, accuracy of the free models over time, behaviour under many concurrent users.
 
+## Known limitation
+
+On the free Render plan, Yahoo Finance rejects fundamentals requests (`YFRateLimitError` for P/E, margins and statements) because the server shares a cloud IP. Prices, technical indicators and news work. When fundamentals are blocked, the report says the data was unavailable instead of guessing. Running the backend locally returns fundamentals normally. A different data source for fundamentals is the next fix.
+
 ## What I would do next
 
 Move memory to a free hosted Postgres so it survives redeploys, add a small expert-labelled answer set, cache news across users, and add auth if it ever stops being a demo.
