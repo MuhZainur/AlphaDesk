@@ -1,4 +1,4 @@
-export const API = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8000";
+export const API = ((import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8000").trim().replace(/\/+$/, "");
 
 export type Step = { id: number; worker: string; ticker: string; goal: string };
 export type Memory = { risk_profile: string; watchlist: string[]; recent_summaries?: { summary: string; tickers: string[] }[] };
@@ -76,7 +76,12 @@ export async function streamChat(threadId: string, message: string, onEvent: (e:
   }
 }
 
-export const getMemory = (): Promise<Memory> => fetch(`${API}/memory/${userId}`).then((r) => r.json());
+export const getMemory = async (): Promise<Memory> => {
+  const r = await fetch(`${API}/memory/${userId}`);
+  const m = await r.json();
+  if (!r.ok || !Array.isArray(m.watchlist)) throw new Error("bad memory response"); // never render a half-formed object
+  return m;
+};
 export const setRisk = (risk_profile: string) =>
   fetch(`${API}/memory/${userId}/profile`, {
     method: "PUT",
