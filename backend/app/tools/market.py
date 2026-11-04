@@ -74,12 +74,43 @@ def get_technicals(ticker: str) -> dict:
     return {"ticker": ticker, **compute_technicals(_history(ticker, "2y")["Close"])}
 
 
+def _row(df: pd.DataFrame, *names: str) -> pd.Series | None:
+    for n in names:
+        if n in df.index:
+            return df.loc[n].dropna()
+    return None
+
+
+def fundamentals_from_statements(ticker: str) -> dict:
+    """Fallback when Yahoo rate-limits `.info` (it does for cloud IPs): compute the same figures from statements."""
+    t = yf.Ticker(ticker)
+    inc, bal = t.quarterly_income_stmt, t.quarterly_balance_sheet
+    rev = _row(inc, "Total Revenue", "Operating Revenue")
+    ni = _row(inc, "Net Income", "Net Income Common Stockholders")
+    eps = _row(inc, "Diluted EPS", "Basic EPS")
+    if rev is None or len(rev) < 4:
+        raise ValueError(f"no statements for {ticker}")
+    price = float(_history(ticker, "5d")["Close"].iloc[-1])
+    out = {"ticker": ticker, "source": "computed from quarterly statements: margin is the trailing four quarters, revenue growth is the latest quarter vs the same quarter a year earlier, no forward P/E", "forward_pe": None}
+    out["trailing_pe"] = round(price / float(eps.iloc[:4].sum()), 2) if eps is not None and len(eps) >= 4 and eps.iloc[:4].sum() > 0 else None
+    out["profit_margin_pct"] = round(float(ni.iloc[:4].sum() / rev.iloc[:4].sum()) * 100, 1) if ni is not None and len(ni) >= 4 else None
+    out["revenue_growth_pct"] = round((float(rev.iloc[0]) / float(rev.iloc[4]) - 1) * 100, 1) if len(rev) >= 5 else None
+    debt, eq = _row(bal, "Total Debt"), _row(bal, "Stockholders Equity", "Common Stock Equity")
+    out["debt_to_equity"] = round(float(debt.iloc[0] / eq.iloc[0]) * 100, 2) if debt is not None and eq is not None and eq.iloc[0] else None
+    if all(out[k] is None for k in ("trailing_pe", "profit_margin_pct", "revenue_growth_pct", "debt_to_equity")):
+        raise ValueError(f"no usable statements for {ticker}")
+    return out
+
+
 @safe
 @cached
 def get_fundamentals(ticker: str) -> dict:
-    info = yf.Ticker(ticker).info
-    if not info or info.get("trailingPE") is None and info.get("forwardPE") is None and not info.get("longName"):
-        raise ValueError(f"no fundamentals for {ticker}")
+    try:
+        info = yf.Ticker(ticker).info
+        if not info or (info.get("trailingPE") is None and info.get("forwardPE") is None and not info.get("longName")):
+            raise ValueError(f"no fundamentals for {ticker}")
+    except Exception:  # noqa: BLE001 - rate limit or empty answer: use the statements route
+        return fundamentals_from_statements(ticker)
 
     def pct(v):
         return round(v * 100, 1) if isinstance(v, (int, float)) else None

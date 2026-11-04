@@ -43,3 +43,14 @@ def test_critic_rules_catch_made_up_number_and_trade_advice():
     assert checks.ungrounded_numbers("RSI is 61.2 and P/E is 28.4.", f) == [28.4]
     issues = checks.rule_issues("You should buy now. P/E is 28.4.", f)
     assert len(issues) == 3  # ungrounded number, trade instruction, missing Risks section
+
+
+def test_fundamentals_falls_back_to_statements_when_info_fails(monkeypatch):
+    class T:
+        @property
+        def info(self):
+            raise RuntimeError("YFRateLimitError")
+
+    monkeypatch.setattr(market.yf, "Ticker", lambda t: T())
+    monkeypatch.setattr(market, "fundamentals_from_statements", lambda t: {"ticker": t, "trailing_pe": 20.0})
+    assert market.get_fundamentals("FALLBK") == {"ticker": "FALLBK", "trailing_pe": 20.0}
