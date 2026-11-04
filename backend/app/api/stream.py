@@ -30,7 +30,9 @@ def run_chat(graph, user_id: str, thread_id: str, message: str):
             "elapsed_ms": int((time.time() - start) * 1000), "saved": stats.saved,
         })
     except llm.LLMUnavailable:
-        yield sse("error", {"code": "model_busy", "message": "The free models are busy right now. Try again in a minute."})
+        print("llm unavailable:", stats.skipped)
+        yield sse("error", {"code": "model_busy", "message": "The free models are busy right now. Try again in a minute.",
+                            "tried": stats.skipped[:12]})  # short reasons per model, no keys or prompts
     except Exception as e:  # noqa: BLE001
         print("chat failed:", repr(e))  # details stay in server logs only
         yield sse("error", {"code": "internal", "message": "Something went wrong. Please try again."})
