@@ -6,6 +6,16 @@ It is the next generation of AlphaSwarm, rebuilt around the five agent design pa
 
 > Not financial advice. AlphaDesk reads public data and writes research notes. It never places trades.
 
+## Live demo
+
+| | URL |
+|---|---|
+| Frontend (Vercel) | https://alpha-desk-seven.vercel.app/ |
+| Backend API (Render) | https://alphadesk-qgap.onrender.com/ |
+| Health check | https://alphadesk-qgap.onrender.com/health |
+
+The backend runs on Render's free plan, so the first request after a quiet period can take about 50 seconds while the server wakes up. Memory is stored in SQLite on an ephemeral disk and may reset when the server restarts.
+
 ## The five patterns
 
 | # | Pattern | Where it lives in AlphaDesk |

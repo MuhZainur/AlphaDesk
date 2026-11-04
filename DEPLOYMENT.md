@@ -8,6 +8,8 @@ Both run on free plans. Order matters: backend first, then frontend, then a CORS
 - A Gemini API key from Google AI Studio.
 - Accounts on Render and Vercel (both can sign in with GitHub).
 
+Deployed instances: frontend https://alpha-desk-seven.vercel.app/ and backend https://alphadesk-qgap.onrender.com/ (for the frontend to work, `ALLOWED_ORIGINS` on Render must be exactly `https://alpha-desk-seven.vercel.app` with no trailing slash).
+
 ## 1. Backend on Render
 
 1. In Render choose **New → Blueprint** and select the repository. Render reads `render.yaml` at the repo root.
