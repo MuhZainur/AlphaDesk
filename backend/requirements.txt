@@ -1,0 +1,14 @@
+# Versions that passed the test suite on 2026-11-04 (Python 3.10 locally, 3.11 on Render).
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+pydantic==2.11.7
+python-dotenv==1.2.1
+langgraph==1.0.5
+langchain-core==0.3.63
+yfinance==1.0
+pandas==2.3.3
+httpx==0.28.1
+requests>=2.31
+
+# tests
+pytest==9.0.2

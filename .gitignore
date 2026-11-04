@@ -1,0 +1,30 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# local data
+*.db
+*.sqlite
+
+# node
+node_modules/
+dist/
+
+# os / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# generated
+evals/eval.db
+evals/run.log
+server.log
+graphify-out/cache/
