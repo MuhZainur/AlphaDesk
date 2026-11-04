@@ -2,7 +2,7 @@
 
 AlphaDesk answers questions about stocks the way a junior research desk would. It makes a plan, sends specialist workers to gather technicals, fundamentals and news, writes a short report, has a critic check that report against the evidence, and remembers your watchlist and risk profile between sessions.
 
-It is the next version of [AlphaSwarm](../AlphaSwarm), rebuilt around the five agent design patterns that separate a demo from an agent worth shipping.
+It is the next generation of AlphaSwarm, rebuilt around the five agent design patterns that separate a demo from an agent worth shipping.
 
 > Not financial advice. AlphaDesk reads public data and writes research notes. It never places trades.
 

@@ -28,3 +28,4 @@ evals/eval.db
 evals/run.log
 server.log
 graphify-out/cache/
+graphify-out/.*
