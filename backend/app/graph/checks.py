@@ -3,7 +3,7 @@ import json
 import re
 
 NUM = re.compile(r"(?<![\w.])-?\d[\d,]*(?:\.\d+)?")
-WINDOWS = {12, 14, 20, 26, 50, 52, 100, 200}  # indicator settings, not data
+WINDOWS = {12, 14, 20, 26, 30, 50, 52, 70, 100, 200}  # indicator settings and RSI 30/70 thresholds, not data
 TRADE = re.compile(r"\b(you should (buy|sell)|i recommend (buying|selling)|strong buy|strong sell|buy now|sell now|guaranteed|will (rise|fall|double))\b", re.I)
 DISCLAIMER = "not financial advice"
 

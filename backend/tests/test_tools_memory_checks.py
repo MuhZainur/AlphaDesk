@@ -64,3 +64,8 @@ def test_ttm_and_growth_from_sec_rows():
     ttm, growth = market.ttm_and_growth(rows)
     assert ttm == 400 + 350 - 280 and round(growth, 1) == 25.0  # TTM = FY + YTD - prior YTD
     assert market.ttm_and_growth([r("2025-07-01", "2025-09-30", 90)]) == (None, None)  # no annual window
+
+
+def test_rsi_thresholds_are_not_flagged():
+    f = [SimpleNamespace(evidence={"rsi14": 61.2})]
+    assert checks.ungrounded_numbers("RSI is 61.2, below the 70 overbought level and above 30.", f) == []
